@@ -1,75 +1,20 @@
 <!DOCTYPE html>
-<html lang="th">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>My Friend AI Sale Sunday - Island App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Friend AI Island</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body, html { width: 100%; height: 100%; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f19; user-select: none; }
-        #canvas-container { width: 100%; height: 100%; position: relative; cursor: grab; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        #map-wrapper { position: absolute; width: 1200px; height: 675px; transform-origin: center center; transition: transform 0.1s ease-out; will-change: transform; }
-        /* ปรับให้วิดีโอจาก Google Drive แสดงผลเต็มพื้นที่และลื่นไหล */
-        #bg-video { width: 100%; height: 100%; object-fit: cover; box-shadow: 0 0 50px rgba(0,0,0,0.6); pointer-events: none; border-radius: 12px; }
-        .shop-marker { position: absolute; width: 40px; height: 40px; border: 3px solid #ffffff; border-radius: 50%; transform: translate(-50%, -50%); cursor: pointer; animation: pulse 2s infinite; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: bold; z-index: 10; transition: transform 0.2s ease; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); } 70% { box-shadow: 0 0 0 12px rgba(255, 255, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); } }
-        .shop-marker.zone1 { background-color: #ff3b30; box-shadow: 0 0 15px #ff3b30; } 
-        .shop-marker.zone2 { background-color: #ffcc00; color: #000; border-color: #000; box-shadow: 0 0 25px #ffcc00; border-radius: 8px; } 
-        .shop-marker.zone3 { background-color: #34c759; box-shadow: 0 0 15px #34c759; } 
-        #info-panel { position: fixed; bottom: -100%; left: 50%; transform: translateX(-50%); width: 92%; max-width: 460px; background: rgba(15, 22, 38, 0.96); border: 1px solid rgba(255,255,255,0.15); border-radius: 24px 24px 0 0; padding: 25px; color: #ffffff; transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 100; box-shadow: 0 -15px 35px rgba(0,0,0,0.6); backdrop-filter: blur(15px); }
-        #info-panel.active { bottom: 0; }
-        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 28px; cursor: pointer; color: #8e8e93; }
-        .action-btn { display: block; width: 100%; padding: 14px; background: linear-gradient(135deg, #34c759, #248a3d); color: white; text-align: center; text-decoration: none; border-radius: 12px; font-weight: bold; margin-top: 15px; }
-        #controls { position: fixed; top: 20px; left: 20px; z-index: 100; display: flex; gap: 8px; }
-        .ctrl-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px 16px; border-radius: 10px; cursor: pointer; backdrop-filter: blur(8px); }
+        body { margin: 0; padding: 0; overflow: hidden; background: #000; }
+        #canvas { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+        video { width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
 <body>
-    <div id="controls">
-        <button class="ctrl-btn" onclick="zoom(0.2)">ซูมเข้า +</button>
-        <button class="ctrl-btn" onclick="zoom(-0.2)">ซูมออก -</button>
-        <button class="ctrl-btn" onclick="resetZoom()">รีเซ็ตฉาก</button>
+    <div id="canvas">
+        <video autoplay loop muted playsinline>
+            <source src="my friend AI.mp4" type="video/mp4">
+        </video>
     </div>
-    <div id="canvas-container">
-        <div id="map-wrapper">
-            <!-- ดึงวิดีโอตรงจาก Google Drive ของพี่ -->
-            <video id="bg-video" autoplay loop muted playsinline>
-                <source src="https://docs.google.com/uc?export=download&id=1rc7PeD6AtZttMaN4UmttalWFnRXVgzdS" type="video/mp4">
-            </video>
-            <div id="marker-layer"></div>
-        </div>
-    </div>
-    <div id="info-panel">
-        <span class="close-btn" onclick="document.getElementById('info-panel').classList.remove('active')">&times;</span>
-        <div id="panel-title" style="color: #ffcc00; font-weight: bold; font-size: 20px;">รายละเอียด</div>
-        <div id="panel-desc" style="margin: 15px 0;">เลือกจุดที่สนใจบนแผนที่ครับ</div>
-        <a id="panel-link" href="#" target="_blank" class="action-btn">ติดต่อตรงภายนอก</a>
-    </div>
-    <script>
-        const shopDatabase = [
-            { id: "โซน 1", name: "โซน 1: ตลาดร้านค้าชุมชนเสรี", type: "zone1", x: 75, y: 50, desc: "พื้นที่เปิดให้พ่อค้าแม่ค้าเข้ามาค้าขาย วางของขายออนไลน์ได้อย่างอิสระ", link: "https://line.me" },
-            { id: "โซน 2", name: "โซน 2: พื้นที่ป้ายโฆษณาใหญ่", type: "zone2", x: 45, y: 45, desc: "ป้ายโฆษณาพรีเมียมขนาดใหญ่สำหรับสร้างรายได้หลัก", link: "https://line.me" },
-            { id: "โซน 3", name: "โซน 3: แหล่งท่องเที่ยววิวธรรมชาติ", type: "zone3", x: 20, y: 60, desc: "จุดปักป้ายแปะภาพวิวธรรมชาติสวย ๆ รอบเกาะ", link: "https://google.com" }
-        ];
-        const markerLayer = document.getElementById('marker-layer');
-        shopDatabase.forEach(shop => {
-            const marker = document.createElement('div');
-            marker.className = `shop-marker ${shop.type}`;
-            marker.style.left = `${shop.x}%`; marker.style.top = `${shop.y}%`;
-            marker.innerText = shop.id;
-            marker.onclick = () => {
-                document.getElementById('panel-title').innerText = shop.name;
-                document.getElementById('panel-desc').innerText = shop.desc;
-                document.getElementById('panel-link').href = shop.link;
-                document.getElementById('info-panel').classList.add('active');
-            };
-            markerLayer.appendChild(marker);
-        });
-        let currentScale = 1, translateX = 0, translateY = 0;
-        function updateTransform() { document.getElementById('map-wrapper').style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentScale})`; }
-        function zoom(amount) { currentScale = Math.min(Math.max(0.5, currentScale + amount), 4); updateTransform(); }
-        function resetZoom() { currentScale = 1; translateX = 0; translateY = 0; updateTransform(); }
-        // ระบบ Drag เพิ่มเติมสามารถใส่เพิ่มได้ที่นี่ครับ
-    </script>
 </body>
 </html>
