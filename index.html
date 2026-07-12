@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>My Friend AI Sale Sunday - Sa Kaeo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0b0f19;
+        }
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            cursor: grab;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #canvas-container:active {
+            cursor: grabbing;
+        }
+        #map-wrapper {
+            position: relative;
+            transform-origin: center center;
+            transition: transform 0.1s ease-out;
+        }
+        #base-map {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            pointer-events: none;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+        
+        /* ระบบหมุดทั่วไป */
+        .shop-marker {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            background-color: #ff3b30;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            box-shadow: 0 0 15px #ff3b30;
+            animation: pulse 2s infinite;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            z-index: 10;
+        }
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
+            70% { transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 0 0 10px rgba(255, 59, 48, 0); }
+            100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+        }
+        .shop-marker.service { background-color: #007aff; box-shadow: 0 0 15px #007aff; }
+        .shop-marker.travel { background-color: #34c759; box-shadow: 0 0 15px #34c759; }
+        
+        /* หมุดป้ายโฆษณาใหญ่สีทอง */
+        .shop-marker.billboard { 
+            background-color: #ffcc00; 
+            color: #000;
+            border: 3px solid #000000;
+            box-shadow: 0 0 20px #ffcc00; 
+            border-radius: 6px; /* ทรงเหลี่ยมเหมือนป้ายโฆษณา */
+            width: 38px;
+            height: 26px;
+        }
+
+        /* หน้าต่างป๊อปอัปเด้งปื๊ด */
+        #info-panel {
+            position: fixed;
+            bottom: -100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 450px;
+            background: rgba(20, 27, 45, 0.95);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px 20px 0 0;
+            padding: 25px;
+            color: #ffffff;
+            transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 100;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+        }
+        #info-panel.active { bottom: 0; }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: #aaa; }
+        .close-btn:hover { color: white; }
+        #panel-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; color: #ffcc00; }
+        #panel-desc { font-size: 14px; color: #ccc; margin-bottom: 15px; line-height: 1.4; }
+        
+        /* จุดแสดงรูปภาพป้ายโฆษณา */
+        #panel-img {
+            width: 100%;
+            height: auto;
+            max-height: 200px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: none;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .action-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #25d366, #075e54);
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: bold;
+            margin-top: 10px;
+            box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+        }
+        
+        #controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            display: flex;
+            gap: 10px;
+        }
+        .ctrl-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            backdrop-filter: blur(5px);
+        }
+        .ctrl-btn:hover { background: rgba(255,255,255,0.4); }
+    </style>
+</head>
+<body>
+
+    <div id="controls">
+        <button class="ctrl-btn" onclick="zoom(0.1)">ซูมเข้า +</button>
+        <button class="ctrl-btn" onclick="zoom(-0.1)">ซูมออก -</button>
+        <button class="ctrl-btn" onclick="resetZoom()">รีเซ็ตฉาก</button>
+    </div>
+
+    <div id="canvas-container">
+        <div id="map-wrapper">
+            <img id="base-map" src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80" alt="ฉากหลังเกาะ/เมืองเสมือนจริง">
+            <div id="marker-layer"></div>
+        </div>
+    </div>
+
+    <div id="info-panel">
+        <span class="close-btn" onclick="closePanel()">&times;</span>
+        <div id="panel-title">ชื่อตำแหน่ง</div>
+        <img id="panel-img" src="" alt="ป้ายโฆษณา/รูปหน้าร้าน">
+        <div id="panel-desc">รายละเอียด</div>
+        <a id="panel-link" href="#" target="_blank" class="action-btn">ติดต่อตรงภายนอก</a>
+    </div>
+
+    <script>
+        // ฐานข้อมูลตารางว่าง ๆ ที่เพิ่มชุดพื้นที่โฆษณา (billboard) ไว้ให้พี่ตามพิกัดเปอร์เซ็นต์
+        const shopDatabase = [
+            { id: "ตลาด", name: "พื้นที่ตลาดนัดกลาง Sale Sunday", type: "market", x: 50, y: 50, desc: "โซนตลาดนัดเปิดเสรีสำหรับวางของซื้อขาย เลื่อนหน้าจอดูร้านค้าชุมชนสระแก้ว", img: "", link: "https://line.me" },
+            { id: "ทะเล", name: "จุดโซนทะเล / แหล่งท่องเที่ยวสำรวจเกาะ", type: "travel", x: 75, y: 30, desc: "พื้นที่พักผ่อนหย่อนใจ เสบเสพภาพวิวบรรยากาศชิล ๆ แก้เซ็งในวันหยุด", img: "", link: "https://google.com" },
+            { id: "บริการ", name: "จุดโซนบริการ / ร้านค้าชุมชนจำเป็น", type: "service", x: 25, y: 65, desc: "พื้นที่รวบรวมพิกัดสำคัญ เช่น ร้านปะยาง ร้านซ่อมรถ ของกินของใช้ในพื้นที่สระแก้ว", img: "", link: "https://line.me" },
+            { id: "ป้าย 1", name: "พื้นที่ป้ายโฆษณาใหญ่เด่น (Billboard โซน A)", type: "billboard", x: 50, y: 20, desc: "พื้นที่ว่างสำหรับโฆษณาขนาดใหญ่ ประประกาศข่าวสารสำคัญ หรือติดป้ายโปรโมตกิจกรรมชุมชน", img: "https://images.unsplash.com/photo-1542744094-3a31f103e35f?auto=format&fit=crop&w=400&q=80", link: "https://line.me" }
+        ];
+
+        const markerLayer = document.getElementById('marker-layer');
+        const infoPanel = document.getElementById('info-panel');
+        const mapWrapper = document.getElementById('map-wrapper');
+        const panelImg = document.getElementById('panel-img');
+
+        function renderMarkers() {
+            markerLayer.innerHTML = '';
+            shopDatabase.forEach(shop => {
+                const marker = document.createElement('div');
+                marker.className = `shop-marker ${shop.type}`;
+                marker.style.left = `${shop.x}%`;
+                marker.style.top = `${shop.y}%`;
+                marker.innerText = shop.id;
+                
+                marker.onclick = () => {
+                    document.getElementById('panel-title').innerText = shop.name;
+                    document.getElementById('panel-desc').innerText = shop.desc;
+                    document.getElementById('panel-link').href = shop.link;
+                    
+                    // ระบบตรวจสอบว่าถ้ามีรูปภาพโฆษณาให้กางรูปป้ายใหญ่โชว์ทันที
+                    if(shop.img !== "") {
+                        panelImg.src = shop.img;
+                        panelImg.style.display = "block";
+                    } else {
+                        panelImg.style.display = "none";
+                    }
+                    
+                    infoPanel.classList.add('active');
+                };
+                markerLayer.appendChild(marker);
+            });
+        }
+
+        function closePanel() {
+            infoPanel.classList.remove('active');
+        }
+
+        let currentScale = 1;
+        function zoom(amount) {
+            currentScale = Math.min(Math.max(0.5, currentScale + amount), 4);
+            mapWrapper.style.transform = `scale(${currentScale})`;
+        }
+        function resetZoom() {
+            currentScale = 1;
+            mapWrapper.style.transform = `scale(1)`;
+        }
+
+        window.onload = () => {
+            renderMarkers();
+        };
+    </script>
+</body>
+</html>
